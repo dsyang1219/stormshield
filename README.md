@@ -61,7 +61,7 @@ Hard-of-hearing individuals often remove their hearing aids during sports to avo
 ## 🚀 Setup Instructions
 
 ### 🖥️ 1. Web App
-- Open [danielleyang.com](https://danielleyang.com) in a supported browser (Chrome or Edge)
+- Open [danielleyang.com](https://danielleyang.com/stormshield) in a supported browser (Chrome or Edge)
 - Click **“Connect Device”** to pair via Bluetooth
 - View live sensor data and set custom danger thresholds
 - Review graph logs for past movement events
@@ -115,9 +115,10 @@ Hard-of-hearing individuals often remove their hearing aids during sports to avo
 
 ## 🔗 Links
 
-- 🔗 [Live Site](https://danielleyang.com)  
+- 🔗 [Live Site](https://danielleyang.com/stormshield)  
 - 💡 [Samsung Solve for Tomorrow](https://www.samsung.com/us/solvefortomorrow/)  
-- 📂 [Web App Code](./index.html)  
+- 📂 [Web App Code](./index.html)
+- ⚙️ [Arduino Firmware](./stormshield.ino/)
 
 ---
 
