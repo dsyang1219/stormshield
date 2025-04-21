@@ -117,7 +117,7 @@ Hard-of-hearing individuals often remove their hearing aids during sports to avo
 
 - 🔗 [Live Site](https://danielleyang.com)  
 - 💡 [Samsung Solve for Tomorrow](https://www.samsung.com/us/solvefortomorrow/)  
-- 📂 [Web App Code](./stormshield.ino)  
+- 📂 [Web App Code](./index.html)  
 
 ---
 
