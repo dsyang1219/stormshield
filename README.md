@@ -90,8 +90,8 @@ Hard-of-hearing individuals often remove their hearing aids during sports to avo
 | Name             | Role                    | Focus Areas                        |
 |------------------|-------------------------|------------------------------------|
 | Danielle Yang    | Hardware & App Lead     | Sensor code, BLE web integration   |
-| Sara [Last Name] | Frontend Developer      | Responsive UI & animations         |
-| Audrey [Last Name] | Community Research | User interviews, testing, outreach |
+| Audrey Adams | Prototype Developer      | Prototype design and creation         |
+| Sara Carmona | Community Research | User interviews, testing, outreach |
 
 ---
 
@@ -117,8 +117,7 @@ Hard-of-hearing individuals often remove their hearing aids during sports to avo
 
 - 🔗 [Live Site](https://danielleyang.com)  
 - 💡 [Samsung Solve for Tomorrow](https://www.samsung.com/us/solvefortomorrow/)  
-- 📂 [Web App Code](./)  
-- ⚙️ [Arduino Firmware](./firmware/)  
+- 📂 [Web App Code](./stormshield.ino)  
 
 ---
 
