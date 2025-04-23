@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storm Shield BLE</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- CSS STYLES OMITTED HERE FOR BREVITY, ASSUMED INCLUDED IN THE USER HTML -->
+</head>
+<body>
+  <!-- HTML BODY CONTENT OMITTED HERE FOR BREVITY, ASSUMED INCLUDED IN THE USER HTML -->
+
+<script>
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-mode');
+  }
+
+  function toggleDarkMode() {
+    const isDark = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }
+
+  function showPage(pageId) {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    const clickedBtn = Array.from(document.querySelectorAll('nav button')).find(btn => btn.textContent.toLowerCase().includes(pageId.toLowerCase()));
+    if (clickedBtn) clickedBtn.classList.add('active');
+    if (pageId === 'logs' && window.scoreChart) {
+      setTimeout(() => {
+        scoreChart.resize();
+      }, 100);
+    }
+  }
+
+  let device, server, characteristic;
+  let currentThreshold = 0;
+
+  const connectBtn = document.getElementById('connectBtn');
+  const thresholdSlider = document.getElementById('thresholdSlider');
+  const thresholdValue = document.getElementById('thresholdValue');
+  const status = document.getElementById('status');
+  const data = document.getElementById('data');
+  const score = document.getElementById('score');
+  const scoreLog = document.getElementById('scoreLog');
+  const ctx = document.getElementById('scoreChart').getContext('2d');
+
+  const chartData = {
+    labels: [],
+    datasets: [{
+      label: 'Score',
+      data: [],
+      borderColor: '#0055aa',
+      backgroundColor: 'rgba(0, 85, 170, 0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3,
+      pointHoverRadius: 6
+    }]
+  };
+
+  const scoreChart = new Chart(ctx, {
+    type: 'line',
+    data: chartData,
+    options: {
+      responsive: true,
+      scales: {
+        x: { title: { display: true, text: 'Time', font: { weight: '600' } } },
+        y: { title: { display: true, text: 'Score', font: { weight: '600' } }, beginAtZero: true }
+      },
+      plugins: { legend: { labels: { font: { weight: '600' } } } }
+    }
+  });
+
+  connectBtn.onclick = async () => {
+    try {
+      const serviceUUID = 'cda3dd4c-e224-4a47-93d3-7c7cc39cb005';
+      const characteristicUUID = '8b9843f5-2ed5-4bbd-abec-860f1f5ef2a7';
+      device = await navigator.bluetooth.requestDevice({ filters: [{ services: [serviceUUID] }] });
+      status.textContent = '⏳ Connecting...';
+      server = await device.gatt.connect();
+      const service = await server.getPrimaryService(serviceUUID);
+      characteristic = await service.getCharacteristic(characteristicUUID);
+      await characteristic.startNotifications();
+      characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+      status.textContent = '✅ Connected to ' + device.name;
+    } catch (error) {
+      console.error(error);
+      status.textContent = '❌ Connection failed';
+    }
+  };
+
+  thresholdSlider.oninput = () => {
+    const value = thresholdSlider.value;
+    currentThreshold = parseInt(value);
+    thresholdValue.textContent = value;
+    if (characteristic) {
+      const buffer = new Uint8Array([currentThreshold]);
+      characteristic.writeValue(buffer);
+    }
+  };
+
+  function handleNotifications(event) {
+    const value = new TextDecoder().decode(event.target.value);
+    const match = value.match(/D(\d+\.?\d*),S(\d+\.?\d*)/);
+    if (match) {
+      const [, dist, spd] = match;
+      const d = parseFloat(dist);
+      const s = parseFloat(spd);
+      const scoreValue = (1.0 / d) * 100 + s;
+      data.textContent = `Distance: ${d.toFixed(2)} | Speed: ${s.toFixed(2)}`;
+      score.textContent = `Score: ${scoreValue.toFixed(2)} (Threshold: ${currentThreshold})`;
+      const time = new Date().toLocaleTimeString();
+      const li = document.createElement('li');
+      li.textContent = `${time} → Score: ${scoreValue.toFixed(2)}`;
+      scoreLog.prepend(li);
+      if (scoreLog.children.length > 50) scoreLog.removeChild(scoreLog.lastChild);
+      chartData.labels.push(time);
+      chartData.datasets[0].data.push(scoreValue);
+      if (chartData.labels.length > 50) {
+        chartData.labels.shift();
+        chartData.datasets[0].data.shift();
+      }
+      scoreChart.update();
+    } else {
+      console.log('Unrecognized data:', value);
+    }
+  }
+</script>
+</body>
+</html>
