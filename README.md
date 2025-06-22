@@ -5,3 +5,5 @@ This is a project by Bloomington High School South (Indiana) in the 2025 Samsung
 ![dd19fb35-169c-45c6-a038-2531a2776475](https://github.com/user-attachments/assets/656ad355-ba23-4de4-b6c2-2878a25eef25)
 
 Our code is organized as follows:
+
+index.html: the web-based application
