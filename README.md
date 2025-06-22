@@ -8,3 +8,4 @@ Our code is organized as follows:
 
 1. index.html and style.css: the web-based application
 2. stormshield.ino: the Arduino code
+3. favicon.ico: the favicon
