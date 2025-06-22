@@ -6,4 +6,5 @@ This is a project by Bloomington High School South (Indiana) in the 2025 Samsung
 
 Our code is organized as follows:
 
-index.html: the web-based application
+1. index.html and style.css: the web-based application
+2. stormshield.ino: the Arduino code
