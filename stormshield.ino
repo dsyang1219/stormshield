@@ -4,57 +4,50 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include <algorithm>  // std::remove_if
-#include <cctype>     // ::isspace
-#include <cmath>      // expf
+#include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <string>
 
-// ✅ UART2 for C1001
-#define RX_PIN 32
-#define TX_PIN 33
+// ====================== User Tunables ======================
+// Keep-alive via CPU spike (no external loads)
+#define KEEPALIVE_INTERVAL_MS 1000   // How often to spike current
+#define KEEPALIVE_BURST_MS     120   // How long to burn CPU each interval (80–200ms typical)
+
+// UART2 for C1001 mmWave Sensor
+#define RX_PIN 32  // C1001 TX → ESP32 RX
+#define TX_PIN 33  // C1001 RX ← ESP32 TX
 #define BAUD_RATE 115200
 
-// ✅ Servo
+// Servo
 #define SERVO_PIN 27
 
-// === Logistic Regression (score → probability) ===
-// We only adjust the *score threshold* S via BLE.
-// Internally, we set w0 so that p=0.5 at score=S:  w0 = -w1 * S
-static float w1 = 0.20f;        // slope (tune in code if needed)
-static float w0 = 0.0f;         // intercept (auto-set from S)
-static int   scoreThreshold = 50; // default S
+// BLE UUIDs
+#define SERVICE_UUID        "cda3dd4c-e224-4a47-93d3-7c7ccf77e5ad"
+#define CHARACTERISTIC_UUID "79e3ff4d-b3e1-4cc1-9096-5c1cbe0a1493"
 
-// Convenience: recompute intercept to align p=0.5 at S
+// ================= Logistic Regression (threshold-only UX) =================
+// We keep a fixed slope and move the intercept so that p=0.5 at score=S.
+static float w1 = 0.20f;        // slope
+static float w0 = 0.0f;         // intercept (auto-set from S)
+static int   scoreThreshold = 50; // default S (adjust via BLE exactly like before)
+
 static inline void set_boundary_at_score(int S) {
   scoreThreshold = S;
   w0 = -w1 * (float)S;
 }
 
-// ✅ Power-bank keepalive
-#define POWER_PIN 4
-#define EXTRA_LOAD_PIN 5
-#define LED_PIN 2
-#define PWM_CHANNEL 0
-
-// ✅ BLE
-#define SERVICE_UUID        "cda3dd4c-e224-4a47-93d3-7c7ccf77e5ad"
-#define CHARACTERISTIC_UUID "79e3ff4d-b3e1-4cc1-9096-5c1cbe0a1493"
-
-Servo servo;
-HardwareSerial SensorSerial(2);
-
-// --- Helpers ---
 static inline float sigmoidf(float x) {
   if (x >= 20.0f) return 1.0f;
   if (x <= -20.0f) return 0.0f;
   return 1.0f / (1.0f + expf(-x));
 }
 
+// ================= BLE threshold callback (S=NN or bare integer) =================
 static inline void trimSpaces(std::string& s) {
   s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
 }
 
-// BLE: accept only S=NN or bare integer (keeps UX identical to before)
 class ThresholdCallback : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pChar) override {
     std::string value = pChar->getValue();
@@ -63,14 +56,13 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
 
     bool handled = false;
 
-    // S=NN form
     if (value.rfind("S=", 0) == 0 && value.size() > 2) {
       try {
         int S = std::stoi(value.substr(2));
         set_boundary_at_score(S);
         Serial.print("🎯 Score threshold set: S=");
         Serial.print(scoreThreshold);
-        Serial.print("  → LR boundary p=0.5 at S; w0=");
+        Serial.print("  → w0=");
         Serial.print(w0, 4);
         Serial.print(", w1=");
         Serial.println(w1, 4);
@@ -80,10 +72,8 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
       }
     }
 
-    // Bare integer form
     if (!handled) {
       try {
-        // If it parses as int, treat as S
         int S = std::stoi(value);
         set_boundary_at_score(S);
         Serial.print("🎯 Score threshold set (bare): S=");
@@ -100,6 +90,14 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
   }
 };
 
+// =================== Globals ===================
+Servo servo;
+HardwareSerial SensorSerial(2);
+
+// Keep-alive timing
+unsigned long lastKeepAlive = 0;
+
+// =================== Setup ===================
 void setup() {
   Serial.begin(115200);
   SensorSerial.begin(BAUD_RATE, SERIAL_8N1, RX_PIN, TX_PIN);
@@ -110,14 +108,6 @@ void setup() {
   // Servo
   servo.attach(SERVO_PIN);
   servo.write(0);
-
-  // Power-bank keepalive
-  pinMode(POWER_PIN, OUTPUT);
-  pinMode(EXTRA_LOAD_PIN, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
-  ledcSetup(PWM_CHANNEL, 5000, 8);
-  ledcAttachPin(POWER_PIN, PWM_CHANNEL);
-  ledcWrite(PWM_CHANNEL, 128);
 
   // BLE
   BLEDevice::init("StormShield");
@@ -143,7 +133,31 @@ void setup() {
   Serial.println(w1, 4);
 }
 
+// =================== CPU Keep-Alive Spike ===================
+static inline void keepAliveCpuBurst() {
+  // Burn CPU on purpose to spike current consumption briefly.
+  unsigned long t0 = millis();
+  // Make sure both FP unit and integer unit are busy
+  // NOTE: volatile prevents optimization away
+  while (millis() - t0 < KEEPALIVE_BURST_MS) {
+    volatile float acc = 0.0f;
+    // Tune inner loop cost if needed (more iterations => more load)
+    for (int i = 0; i < 2500; ++i) {
+      float a = (float)i * 0.0031f;
+      float b = (float)i * 0.0017f + 0.5f;
+      acc += sinf(a) * cosf(b) + sqrtf(a + 1.0f);
+    }
+    // Light integer churn
+    volatile uint32_t x = 0xA5A5A5A5;
+    for (int k = 0; k < 5000; ++k) {
+      x ^= (x << 5) + (x >> 3) + k;
+    }
+  }
+}
+
+// =================== Main Loop ===================
 void loop() {
+  // === 1) Sensor read & decision ===
   static String sensorData = "";
   while (SensorSerial.available()) {
     char c = SensorSerial.read();
@@ -152,15 +166,13 @@ void loop() {
       if (sensorData.startsWith("Score:")) {
         int score = sensorData.substring(6).toInt();
 
-        // Logistic probability
         float p = sigmoidf(w0 + w1 * (float)score);
-
         Serial.print("📡 Score=");
         Serial.print(score);
         Serial.print("  p=");
         Serial.println(p, 4);
 
-        // Decision: p >= 0.5 (i.e., score is on/above S boundary)
+        // Logistic decision: p >= 0.5 ↔ score >= S
         if (p >= 0.5f) {
           Serial.println("✅ p >= 0.5 (>= S) → TRIGGER");
           servo.write(90);
@@ -174,6 +186,13 @@ void loop() {
     }
   }
 
-  // Fake load toggling
-  digitalWrite(EXTRA_LOAD_PIN, millis() % 1000 < 500 ? HIGH : LOW);
+  // === 2) Software keep-alive via CPU spike ===
+  unsigned long now = millis();
+  if (now - lastKeepAlive >= KEEPALIVE_INTERVAL_MS) {
+    lastKeepAlive = now;
+    keepAliveCpuBurst();  // brief current spike
+  }
+
+  // Small yield so Wi-Fi/BLE housekeeping runs smoothly
+  delay(1);
 }
