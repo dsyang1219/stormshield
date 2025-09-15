@@ -65,12 +65,6 @@ D{distance},S{speed}
 - **Buzz test:** the string `buzz` can be written to trigger a haptic/buzzer test on supported firmware.
 
 ## Risk Scoring
-The current web app computes a simple heuristic score from distance and speed:
-```
-Score = (100 / distance) + speed
-```
-If you are using a trained **logistic regression** model in your firmware or app, replace the scoring step accordingly, for example:
-```
 p = 1 / (1 + exp(-(β0 + β1·distance + β2·speed)))
 # trigger when p ≥ threshold
 ```
