@@ -4,20 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StormShield</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #eef3f8; color: #333; text-align: center; }
-    header { background: #003366; color: white; padding: 1.25rem; }
-    nav { display: flex; justify-content: center; gap: 1rem; background: #d7e3f0; padding: 0.5rem; }
-    nav button { background: none; border: none; padding: 0.6rem 1rem; cursor: pointer; }
-    nav button.active { border-bottom: 3px solid #003366; font-weight: bold; }
-    section { display: none; padding: 1.5rem; }
-    section.active { display: block; }
-    .card { background: #fff; max-width: 900px; margin: 1rem auto; padding: 1.5rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-    .status { margin-top: 0.5rem; font-weight: 600; }
-    .primary { background: #003366; color: #fff; border: 0; padding: 0.7rem 1.1rem; border-radius: 8px; cursor: pointer; }
-    canvas { margin-top: 1rem; }
-  </style>
 </head>
 <body>
   <header><h1>StormShield</h1></header>
@@ -41,13 +30,13 @@
     <div class="card">
       <label for="thresholdSlider">Boundary S (p=0.5 at score=S): <span id="thresholdValue">50</span></label>
       <input type="range" id="thresholdSlider" min="0" max="100" value="50" step="1">
-      <div style="margin-top: 0.7rem;">
+      <div class="button-row">
         <button class="primary" id="preset30">Active (30)</button>
         <button class="primary" id="preset50">Balanced (50)</button>
         <button class="primary" id="preset70">Passive (70)</button>
         <button class="primary" id="buzzButton">Test Buzz</button>
       </div>
-      <p style="opacity:0.85;">Lower S triggers earlier; higher S triggers later.</p>
+      <p class="hint">Lower S triggers earlier; higher S triggers later.</p>
     </div>
   </section>
 
@@ -55,7 +44,7 @@
     <div class="card">
       <h3>Score Log</h3>
       <canvas id="scoreChart" height="250"></canvas>
-      <ul id="scoreLog" style="text-align:left; list-style:none; max-height:300px; overflow:auto; padding-left:0;"></ul>
+      <ul id="scoreLog" class="log-list"></ul>
     </div>
   </section>
 
