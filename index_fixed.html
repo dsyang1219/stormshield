@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StormShield</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #eef3f8;
+      --text: #333;
+      --card-bg: white;
+      --primary: #003366;
+      --primary-hover: #0055aa;
+    }
+    body.dark-mode {
+      --bg: #1c1f26;
+      --text: #eee;
+      --card-bg: #2a2d34;
+      --primary: #0a84ff;
+      --primary-hover: #2a9fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      text-align: center;
+      transition: background 0.3s, color 0.3s;
+    }
+    header {
+      background: var(--primary);
+      padding: 1.5rem;
+      position: relative;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: #d7e3f0;
+      box-shadow: inset 0 -1px 0 #c0d3e6;
+    }
+    nav button {
+      background: none;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    nav button:hover { background: #cce0f5; }
+    nav button.active { border-bottom: 4px solid var(--primary); font-weight: bold; background: #cce0f5; }
+    .toggle-dark {
+      position: absolute; top: 1rem; right: 1rem;
+      background: none; border: 2px solid white; color: white; padding: 0.5rem 1rem;
+      font-size: 0.9rem; border-radius: 1rem; cursor: pointer;
+    }
+    section { display: none; padding: 2rem; opacity: 0; transform: translateY(20px); transition: all 0.5s ease; }
+    section.active { display: block; opacity: 1; transform: translateY(0); }
+    .card { background: var(--card-bg); padding: 2rem; margin: 2rem auto; max-width: 900px; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: background 0.3s; }
+    button.primary, .preset-btn { background: var(--primary); color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 0.6rem; font-size: 0.9rem; cursor: pointer; font-weight: 600; transition: background 0.2s ease; }
+    button.primary:hover, .preset-btn:hover { background: var(--primary-hover); }
+    input[type=range] { width: 100%; }
+    .status { margin-top: 1rem; font-weight: 600; font-size: 1.05rem; }
+    canvas { margin-top: 2rem; max-width: 100%; }
+    #scoreLog { max-height: 300px; overflow-y: auto; padding-left: 0; list-style: none; text-align: left; margin-top: 1rem; font-size: 0.95rem; }
+    #scoreLog li { padding: 0.25rem 0; border-bottom: 1px solid rgba(0,0,0,0.1); }
+    body.dark-mode #scoreLog li { border-bottom: 1px solid rgba(255,255,255,0.15); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="color:white; margin:0;">StormShield</h1>
+    <button class="toggle-dark" onclick="toggleDarkMode()">Mode</button>
+  </header>
+  <nav>
+    <button class="active" onclick="showPage('dashboard')">Dashboard</button>
+    <button onclick="showPage('settings')">Settings</button>
+    <button onclick="showPage('logs')">Logs</button>
+    <button onclick="showPage('about')">About</button>
+  </nav>
+
+  <section id="dashboard" class="active">
+    <div class="card">
+      <button class="primary" id="connectBtn">Connect to ESP32</button>
+      <div class="status" id="status">Status: Not connected</div>
+      <div class="status" id="data">Distance: -- | Speed: --</div>
+      <div class="status" id="score">Score: -- | p: --</div>
+    </div>
+  </section>
+
+  <section id="settings">
+    <div class="card">
+      <label for="thresholdSlider">Logistic boundary S (p=0.5 at score=S): <span id="thresholdValue">50</span></label>
+      <input type="range" id="thresholdSlider" min="0" max="100" value="50" step="1" style="margin-top: 0.3rem;">
+      <div id="presetButtons" style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-top:1rem;">
+        <button class="preset-btn" data-value="30">Active</button>
+        <button class="preset-btn" data-value="50">Balanced</button>
+        <button class="preset-btn" data-value="70">Passive</button>
+        <button class="preset-btn" id="buzzButton">Test Buzz</button>
+      </div>
+      <p style="font-size:0.95rem;opacity:0.85;margin-top:1rem;">
+        S sets the score at which the logistic probability crosses 0.5. Lower S triggers earlier; higher S triggers later.
+      </p>
+    </div>
+  </section>
+
+  <section id="logs">
+    <div class="card">
+      <h3>Score Log</h3>
+      <canvas id="scoreChart" height="250"></canvas>
+      <ul id="scoreLog"></ul>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="card">
+      <h3>About StormShield</h3>
+      <p>
+        StormShield computes risk on the ESP32 using logistic regression and streams telemetry over BLE.
+        The web app displays the firmware-provided score and probability without recomputing them.
+      </p>
+    </div>
+  </section>
+
+  <script>
+    // Persist dark mode
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+    function toggleDarkMode() {
+      const isDark = document.body.classList.toggle('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    function showPage(pageId) {
+      document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+      const clickedBtn = Array.from(document.querySelectorAll('nav button')).find(btn => btn.textContent.toLowerCase().includes(pageId.toLowerCase()));
+      if (clickedBtn) clickedBtn.classList.add('active');
+      if (pageId === 'logs') setTimeout(() => scoreChart.resize(), 200);
+    }
+
+    // ===== BLE UUIDs (match firmware) =====
+    const serviceUUID = 'cda3dd4c-e224-4a47-93d3-7c7ccf77e5ad';
+    const characteristicUUID = '79e3ff4d-b3e1-4cc1-9096-5c1cbe0a1493';
+
+    let device, server, characteristic;
+    const connectBtn = document.getElementById('connectBtn');
+    const thresholdSlider = document.getElementById('thresholdSlider');
+    const thresholdValue = document.getElementById('thresholdValue');
+    const statusEl = document.getElementById('status');
+    const dataEl = document.getElementById('data');
+    const scoreEl = document.getElementById('score');
+    const scoreLog = document.getElementById('scoreLog');
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+
+    const chartData = { labels: [], datasets: [{ label: 'Score', data: [], borderColor: '#0055aa', backgroundColor: 'rgba(0,85,170,0.1)', fill: true, tension: 0.3, pointRadius: 3, pointHoverRadius: 6 }] };
+    const scoreChart = new Chart(ctx, { type: 'line', data: chartData, options: { responsive: true, scales: { x: { title: { display: true, text: 'Time', font: { weight: '600' } } }, y: { title: { display: true, text: 'Score', font: { weight: '600' } }, beginAtZero: true } }, plugins: { legend: { labels: { font: { weight: '600' } } } } } });
+
+    connectBtn.onclick = async () => {
+      try {
+        device = await navigator.bluetooth.requestDevice({ filters: [{ services: [serviceUUID] }] });
+        statusEl.textContent = 'Status: Connecting...';
+        server = await device.gatt.connect();
+        const service = await server.getPrimaryService(serviceUUID);
+        characteristic = await service.getCharacteristic(characteristicUUID);
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+        statusEl.textContent = 'Status: Connected to ' + (device.name || 'ESP32');
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = 'Status: Connection failed';
+      }
+    };
+
+    // Interpret "D...,S...,score=...,p=..." from firmware.
+    function handleNotifications(event) {
+      const value = new TextDecoder().decode(event.target.value);
+      const dMatch = value.match(/D(\d+\.?\d*)/);
+      const sMatch = value.match(/S(\d+\.?\d*)/);
+      const scoreMatch = value.match(/score=(\d+\.?\d*)/);
+      const pMatch = value.match(/p=(\d+\.?\d*)/);
+
+      const d = dMatch ? parseFloat(dMatch[1]) : NaN;
+      const s = sMatch ? parseFloat(sMatch[1]) : NaN;
+      const sc = scoreMatch ? parseFloat(scoreMatch[1]) : NaN;
+      const p = pMatch ? parseFloat(pMatch[1]) : NaN;
+
+      if (!Number.isNaN(d) && !Number.isNaN(s)) {
+        dataEl.textContent = `Distance: ${d.toFixed(2)} | Speed: ${s.toFixed(2)}`;
+      }
+      if (!Number.isNaN(sc)) {
+        scoreEl.textContent = `Score: ${sc.toFixed(2)} | p: ${Number.isNaN(p) ? '--' : p.toFixed(2)}`;
+
+        const time = new Date().toLocaleTimeString();
+        const li = document.createElement('li');
+        li.textContent = `${time} → Score: ${sc.toFixed(2)}${Number.isNaN(p) ? '' : ` (p=${p.toFixed(2)})`}`;
+        scoreLog.prepend(li);
+        if (scoreLog.children.length > 50) scoreLog.removeChild(scoreLog.lastChild);
+
+        chartData.labels.push(time);
+        chartData.datasets[0].data.push(sc);
+        if (chartData.labels.length > 50) { chartData.labels.shift(); chartData.datasets[0].data.shift(); }
+        scoreChart.update();
+      } else {
+        console.log('Notification missing score:', value);
+      }
+    }
+
+    // Threshold slider sends "S=<int>" to firmware
+    thresholdSlider.oninput = () => {
+      const value = parseInt(thresholdSlider.value, 10);
+      thresholdValue.textContent = value;
+      if (characteristic) {
+        const payload = new TextEncoder().encode(`S=${value}`);
+        characteristic.writeValue(payload).catch(err => console.error('Failed to write threshold:', err));
+      }
+    };
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const value = parseInt(btn.dataset.value, 10);
+        thresholdSlider.value = value;
+        thresholdSlider.dispatchEvent(new Event('input'));
+      });
+    });
+    document.getElementById('buzzButton').addEventListener('click', () => {
+      if (characteristic) {
+        const buzz = new TextEncoder().encode('buzz');
+        characteristic.writeValue(buzz).catch(err => console.error('Buzz write failed:', err));
+      } else {
+        alert('Please connect your device first.');
+      }
+    });
+  </script>
+</body>
+</html>
