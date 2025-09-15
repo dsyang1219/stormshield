@@ -10,7 +10,7 @@
 #include <string>
 
 // ====================== User Tunables ======================
-// Keep-alive via CPU spike (no external loads)
+// Keep-alive via CPU spike
 #define KEEPALIVE_INTERVAL_MS 1000   // How often to spike current
 #define KEEPALIVE_BURST_MS     120   // How long to burn CPU each interval (80–200ms typical)
 
@@ -26,11 +26,11 @@
 #define SERVICE_UUID        "cda3dd4c-e224-4a47-93d3-7c7ccf77e5ad"
 #define CHARACTERISTIC_UUID "79e3ff4d-b3e1-4cc1-9096-5c1cbe0a1493"
 
-// ================= Logistic Regression (threshold-only UX) =================
+// ================= Logistic Regression =================
 // We keep a fixed slope and move the intercept so that p=0.5 at score=S.
 static float w1 = 0.20f;        // slope
 static float w0 = 0.0f;         // intercept (auto-set from S)
-static int   scoreThreshold = 50; // default S (adjust via BLE exactly like before)
+static int   scoreThreshold = 50;
 
 static inline void set_boundary_at_score(int S) {
   scoreThreshold = S;
@@ -43,7 +43,7 @@ static inline float sigmoidf(float x) {
   return 1.0f / (1.0f + expf(-x));
 }
 
-// ================= BLE threshold callback (S=NN or bare integer) =================
+// ================= BLE threshold callback =================
 static inline void trimSpaces(std::string& s) {
   s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
 }
@@ -60,7 +60,7 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
       try {
         int S = std::stoi(value.substr(2));
         set_boundary_at_score(S);
-        Serial.print("🎯 Score threshold set: S=");
+        Serial.print("Score threshold set: S=");
         Serial.print(scoreThreshold);
         Serial.print("  → w0=");
         Serial.print(w0, 4);
@@ -68,7 +68,7 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
         Serial.println(w1, 4);
         handled = true;
       } catch (...) {
-        Serial.println("⚠️ Failed to parse S. Use S=50");
+        Serial.println("⚠Failed to parse S. Use S=50");
       }
     }
 
@@ -76,7 +76,7 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
       try {
         int S = std::stoi(value);
         set_boundary_at_score(S);
-        Serial.print("🎯 Score threshold set (bare): S=");
+        Serial.print("Score threshold set (bare): S=");
         Serial.print(scoreThreshold);
         Serial.print("  → w0=");
         Serial.print(w0, 4);
@@ -84,7 +84,7 @@ class ThresholdCallback : public BLECharacteristicCallbacks {
         Serial.println(w1, 4);
         handled = true;
       } catch (...) {
-        Serial.println("⚠️ Unrecognized input. Send S=50 or just 50.");
+        Serial.println("⚠Unrecognized input. Send S=50 or just 50.");
       }
     }
   }
@@ -124,8 +124,8 @@ void setup() {
   BLEAdvertising* pAdvertising = pServer->getAdvertising();
   pAdvertising->start();
 
-  Serial.println("🚀 BLE Started and Advertising");
-  Serial.print("🧠 LR: boundary p=0.5 at S=");
+  Serial.println("BLE Started and Advertising");
+  Serial.print("LR: boundary p=0.5 at S=");
   Serial.print(scoreThreshold);
   Serial.print(" ⇒ w0=");
   Serial.print(w0, 4);
@@ -137,17 +137,13 @@ void setup() {
 static inline void keepAliveCpuBurst() {
   // Burn CPU on purpose to spike current consumption briefly.
   unsigned long t0 = millis();
-  // Make sure both FP unit and integer unit are busy
-  // NOTE: volatile prevents optimization away
   while (millis() - t0 < KEEPALIVE_BURST_MS) {
     volatile float acc = 0.0f;
-    // Tune inner loop cost if needed (more iterations => more load)
     for (int i = 0; i < 2500; ++i) {
       float a = (float)i * 0.0031f;
       float b = (float)i * 0.0017f + 0.5f;
       acc += sinf(a) * cosf(b) + sqrtf(a + 1.0f);
     }
-    // Light integer churn
     volatile uint32_t x = 0xA5A5A5A5;
     for (int k = 0; k < 5000; ++k) {
       x ^= (x << 5) + (x >> 3) + k;
@@ -157,7 +153,6 @@ static inline void keepAliveCpuBurst() {
 
 // =================== Main Loop ===================
 void loop() {
-  // === 1) Sensor read & decision ===
   static String sensorData = "";
   while (SensorSerial.available()) {
     char c = SensorSerial.read();
@@ -174,7 +169,7 @@ void loop() {
 
         // Logistic decision: p >= 0.5 ↔ score >= S
         if (p >= 0.5f) {
-          Serial.println("✅ p >= 0.5 (>= S) → TRIGGER");
+          Serial.println("p >= 0.5 (>= S) → TRIGGER");
           servo.write(90);
           delay(1000);
           servo.write(0);
@@ -186,13 +181,11 @@ void loop() {
     }
   }
 
-  // === 2) Software keep-alive via CPU spike ===
   unsigned long now = millis();
   if (now - lastKeepAlive >= KEEPALIVE_INTERVAL_MS) {
     lastKeepAlive = now;
-    keepAliveCpuBurst();  // brief current spike
+    keepAliveCpuBurst();
   }
 
-  // Small yield so Wi-Fi/BLE housekeeping runs smoothly
   delay(1);
 }
