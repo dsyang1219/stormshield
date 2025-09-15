@@ -66,6 +66,7 @@ D{distance},S{speed}
 
 ## Risk Scoring
 p = 1 / (1 + exp(-(β0 + β1·distance + β2·speed)))
+
 # trigger when p ≥ threshold
 ```
 Where `β` are model weights learned offline and embedded in the device or app.
