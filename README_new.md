@@ -1,4 +1,4 @@
-[README (4).md](https://github.com/user-attachments/files/22326283/README.4.md)
+
 # StormShield
 
 StormShield is a wearable safety system built on **ESP32** with an mmWave motion sensor and Bluetooth Low Energy (BLE). The ESP32 computes a risk score on-device and streams telemetry to a browser-based web app for display and logging.
