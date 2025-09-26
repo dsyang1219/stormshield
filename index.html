@@ -5,145 +5,423 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StormShield</title>
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- ===== Old-look CSS you provided, with tiny additions for nav states ===== -->
+  <style>
+    html {
+      font-family: Arial, Helvetica, sans-serif;
+      display: inline-block;
+      text-align: center;
+    }
+    body { margin: 0; background-color: #f4f4f4; }
+
+    h1 {
+      font-size: 1.8rem;
+      color: white;
+      background-color: #0A1128;
+      padding: 20px;
+      margin: 0;
+    }
+    .topnav {
+      overflow: hidden;
+      background-color: #0A1128;
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 6px;
+    }
+    .topnav button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .topnav button.active {
+      background: #173269;
+      border-color: #173269;
+    }
+
+    .content { padding: 50px; }
+    .card-grid {
+      max-width: 800px;
+      margin: 0 auto 30px auto;
+      display: grid;
+      grid-gap: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+    .card {
+      background-color: white;
+      box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: left;
+    }
+
+    button {
+      color: white;
+      padding: 14px 20px;
+      margin: 8px 0;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .onButton { background-color: #1b8a94; }
+    .offButton { background-color: #5f6c6d; }
+    .connectButton { background-color: #24af37; }
+    .disconnectButton { background-color: #d13a30; }
+
+    .gray-label { color: #bebebe; font-size: 1rem; }
+    .reading { font-size: 1.8rem; font-weight: bold; color: #1b8a94; }
+
+    .hint { color: #666; margin-top: 6px; }
+
+    #scoreLog {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+    }
+    #scoreLog li {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.95rem;
+    }
+    #scoreLog li:last-child { border-bottom: none; }
+
+    /* Simple page switching */
+    section { display: none; }
+    section.active { display: block; }
+
+    /* Gallery */
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .gallery img {
+      width: 320px;
+      max-width: 46%;
+      height: auto;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 2px 2px 12px 1px rgba(140,140,140,.4);
+    }
+
+    @media (max-width: 600px) {
+      .content { padding: 20px; }
+      .card-grid { grid-template-columns: 1fr; }
+      .gallery img { max-width: 100%; }
+    }
+  </style>
 </head>
 <body>
-  <header><h1>StormShield</h1></header>
-  <nav>
-    <button class="active" onclick="showPage('dashboard')">Dashboard</button>
-    <button onclick="showPage('settings')">Settings</button>
-    <button onclick="showPage('logs')">Logs</button>
-    <button onclick="showPage('about')">About</button>
-  </nav>
+  <h1>StormShield</h1>
 
+  <!-- Old-style top nav with simple active state -->
+  <div class="topnav">
+    <button data-page="dashboard" class="active">Dashboard</button>
+    <button data-page="settings">Settings</button>
+    <button data-page="logs">Logs</button>
+    <button data-page="about">About</button>
+  </div>
+
+  <!-- ===== Dashboard ===== -->
   <section id="dashboard" class="active">
-    <div class="card">
-      <button class="primary" id="connectBtn">Connect to ESP32</button>
-      <div class="status" id="status">Status: Not connected</div>
-      <div class="status" id="data">Distance: -- | Speed: --</div>
-      <div class="status" id="score">Score: -- | p: --</div>
-    </div>
-  </section>
+    <div class="content">
+      <div class="card-grid">
+        <div class="card">
+          <h3>Device</h3>
+          <button class="connectButton" id="connectBtn">Connect to ESP32</button>
+          <div class="gray-label" id="status">Status: Not connected</div>
+          <div class="reading" id="reading">Distance: -- | Speed: --</div>
+          <div class="gray-label" id="scoreLine">Score: -- | p: --</div>
+        </div>
 
-  <section id="settings">
-    <div class="card">
-      <label for="thresholdSlider">Boundary S (p=0.5 at score=S): <span id="thresholdValue">50</span></label>
-      <input type="range" id="thresholdSlider" min="0" max="100" value="50" step="1">
-      <div class="button-row">
-        <button class="primary" id="preset30">Active (30)</button>
-        <button class="primary" id="preset50">Balanced (50)</button>
-        <button class="primary" id="preset70">Passive (70)</button>
-        <button class="primary" id="buzzButton">Test Buzz</button>
+        <div class="card">
+          <h3>Quick Actions</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="onButton" id="buzzButton">🔔 Test Buzz</button>
+            <button class="offButton" id="clearLog">🧹 Clear Log</button>
+          </div>
+          <p class="hint">“Test Buzz” sends <code>buzz</code> to the device.</p>
+        </div>
       </div>
-      <p class="hint">Lower S triggers earlier; higher S triggers later.</p>
     </div>
   </section>
 
+  <!-- ===== Settings ===== -->
+  <section id="settings">
+    <div class="content">
+      <div class="card-grid">
+        <div class="card">
+          <h3>Sensitivity / Boundary S</h3>
+          <label for="thresholdSlider" class="gray-label">Boundary S (p=0.5 at score=S): <span id="thresholdValue">50</span></label>
+          <input type="range" id="thresholdSlider" min="0" max="100" step="1" value="50" style="width:100%;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="onButton" id="preset30">Active (30)</button>
+            <button class="onButton" id="preset50">Balanced (50)</button>
+            <button class="onButton" id="preset70">Passive (70)</button>
+          </div>
+          <p class="hint">
+            Lower S triggers earlier; higher S triggers later. The slider value is written both as text (<code>S=&lt;int&gt;</code>)
+            and as a single byte <code>[0..100]</code> for firmware compatibility.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Logistic Mapping</h3>
+          <label class="gray-label" for="kInput">Slope parameter k (larger = gentler curve):</label>
+          <input id="kInput" type="number" step="1" min="1" value="12" style="width:120px; padding:8px; border-radius:6px; border:1px solid #ddd;">
+          <p class="hint">
+            If firmware does not send <code>p=...</code>, the app estimates
+            <code>p = 1 / (1 + exp(-(score - S)/k))</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Logs ===== -->
   <section id="logs">
-    <div class="card">
-      <h3>Score Log</h3>
-      <canvas id="scoreChart" height="250"></canvas>
-      <ul id="scoreLog" class="log-list"></ul>
+    <div class="content">
+      <div class="card-grid">
+        <div class="card">
+          <h3>Score Timeline</h3>
+          <canvas id="scoreChart" height="250"></canvas>
+        </div>
+        <div class="card">
+          <h3>Event Log</h3>
+          <ul id="scoreLog"></ul>
+        </div>
+      </div>
     </div>
   </section>
 
+  <!-- ===== About ===== -->
   <section id="about">
-    <div class="card">
-      <h3>About</h3>
-      <p>Risk is computed on the ESP32 and streamed via BLE. The web app only displays firmware-provided values.</p>
+    <div class="content">
+      <div class="card-grid">
+        <div class="card">
+          <h3>About Storm Shield</h3>
+          <p>
+            <strong>Storm Shield</strong> is an AI-powered wearable designed by hard-of-hearing athletes, for hard-of-hearing athletes.
+            It uses mmWave sensors and Bluetooth alerts to detect motion near the head—improving situational awareness without interfering
+            with hearing aids.
+          </p>
+          <p class="hint">Risk is computed on the ESP32 and streamed via BLE. The web app displays and logs firmware-provided values. If needed, it estimates <code>p</code> from score and S.</p>
+          <div class="gallery">
+            <img src="team1.jpg" alt="Competition">
+            <img src="team2.jpg" alt="Team">
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
   <script>
-    function showPage(id) {
+    /* ===== Simple nav handling (old look) ===== */
+    const navButtons = document.querySelectorAll('.topnav button');
+    function showPage(pageId) {
       document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-      const btn = Array.from(document.querySelectorAll('nav button')).find(b => b.textContent.toLowerCase().includes(id.toLowerCase()));
-      if (btn) btn.classList.add('active');
-      if (id === 'logs') setTimeout(() => scoreChart.resize(), 200);
+      document.getElementById(pageId).classList.add('active');
+      navButtons.forEach(b => b.classList.toggle('active', b.dataset.page === pageId));
+      if (pageId === 'logs') setTimeout(() => scoreChart.resize(), 150);
     }
+    navButtons.forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
 
-    // UUIDs must match firmware
-    const serviceUUID = 'cda3dd4c-e224-4a47-93d3-7c7ccf77e5ad';
-    const characteristicUUID = '79e3ff4d-b3e1-4cc1-9096-5c1cbe0a1493';
+    /* ===== BLE + Data handling ===== */
+    // Support BOTH UUID sets (new first, then old):
+    const UUIDS = [
+      { service: 'cda3dd4c-e224-4a47-93d3-7c7cc39cb005', char: '8b9843f5-2ed5-4bbd-abec-860f1f5ef2a7' }, // NEW
+      { service: 'cda3dd4c-e224-4a47-93d3-7c7ccf77e5ad', char: '79e3ff4d-b3e1-4cc1-9096-5c1cbe0a1493' }  // OLD
+    ];
 
     let device, server, characteristic;
-    const connectBtn = document.getElementById('connectBtn');
-    const statusEl = document.getElementById('status');
-    const dataEl = document.getElementById('data');
-    const scoreEl = document.getElementById('score');
-    const thresholdSlider = document.getElementById('thresholdSlider');
-    const thresholdValue = document.getElementById('thresholdValue');
-    const scoreLog = document.getElementById('scoreLog');
+    let S = 50;                    // Boundary (p = 0.5 when score = S)
+    let k = 12;                    // Logistic slope
+    const maxPoints = 100;
 
-    const ctx = document.getElementById('scoreChart').getContext('2d');
-    const chartData = { labels: [], datasets: [{ label: 'Score', data: [], borderColor: '#003366', backgroundColor: 'rgba(0,51,102,0.1)', fill: true, tension: 0.25, pointRadius: 2 }] };
-    const scoreChart = new Chart(ctx, { type: 'line', data: chartData, options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } } });
+    const statusEl  = document.getElementById('status');
+    const readingEl = document.getElementById('reading');
+    const scoreLine = document.getElementById('scoreLine');
+    const scoreLog  = document.getElementById('scoreLog');
 
-    connectBtn.onclick = async () => {
-      try {
-        device = await navigator.bluetooth.requestDevice({ filters: [{ services: [serviceUUID] }] });
-        statusEl.textContent = 'Status: Connecting...';
-        server = await device.gatt.connect();
-        const service = await server.getPrimaryService(serviceUUID);
-        characteristic = await service.getCharacteristic(characteristicUUID);
-        await characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', handleNotify);
-        statusEl.textContent = 'Status: Connected to ' + (device.name || 'ESP32');
-      } catch (e) {
-        console.error(e);
-        statusEl.textContent = 'Status: Connection failed';
+    // Chart.js setup (old-simple styling)
+    const chartCtx = document.getElementById('scoreChart').getContext('2d');
+    const chartData = { labels: [], datasets: [{ label: 'Score', data: [], borderColor: '#0A1128', backgroundColor: 'rgba(10,17,40,0.1)', fill: true, tension: 0.25, pointRadius: 2 }] };
+    const scoreChart = new Chart(chartCtx, {
+      type: 'line',
+      data: chartData,
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+    function estP(score) { return sigmoid((score - S) / Math.max(1, k)); }
+
+    // Try connecting using either UUID set (works with acceptAllDevices)
+    async function connectBLE() {
+      const optionalServices = UUIDS.map(u => u.service);
+      // Broader picker to avoid hard filter mismatch across FW versions
+      device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices
+      });
+      statusEl.textContent = 'Status: Connecting...';
+      server = await device.gatt.connect();
+
+      // Iterate UUIDs until one works
+      for (const u of UUIDS) {
+        try {
+          const service = await server.getPrimaryService(u.service);
+          const ch = await service.getCharacteristic(u.char);
+          characteristic = ch;
+          await characteristic.startNotifications();
+          characteristic.addEventListener('characteristicvaluechanged', handleNotify);
+          statusEl.textContent = 'Status: Connected to ' + (device.name || 'ESP32');
+          return;
+        } catch (e) {
+          // try next pair
+        }
       }
-    };
+      throw new Error('Could not find expected GATT characteristic on this device.');
+    }
 
-    // Expect "d=...,v=...,score=...,p=..."
+    // Handle both payload types:
+    // 1) "D<dist>,S<speed>"  (compute score = 100/d + s, p locally)
+    // 2) "d=..., v=..., score=..., p=..." (use provided; fallback to local p)
     function handleNotify(event) {
-      const s = new TextDecoder().decode(event.target.value);
-      const d = (s.match(/d=(\-?\d+\.?\d*)/) || [])[1];
-      const v = (s.match(/v=(\-?\d+\.?\d*)/) || [])[1];
-      const sc = (s.match(/score=(\d+)/) || [])[1];
-      const p = (s.match(/p=(\d+\.?\d*)/) || [])[1];
+      const txt = new TextDecoder().decode(event.target.value);
 
-      if (d && v) dataEl.textContent = `Distance: ${parseFloat(d).toFixed(2)} | Speed: ${parseFloat(v).toFixed(2)}`;
-      if (sc) {
-        const score = parseInt(sc, 10);
-        scoreEl.textContent = `Score: ${score} | p: ${p ? parseFloat(p).toFixed(2) : '--'}`;
+      // Pattern 1: D...,S...
+      let m = txt.match(/D(\d+\.?\d*),S(\d+\.?\d*)/i);
+      if (m) {
+        const d = parseFloat(m[1]);
+        const v = parseFloat(m[2]);
+        const score = (d > 0 ? (100.0 / d) : 0) + v;
+        const p = estP(score);
+
+        updateUI(d, v, score, p, '(local p)');
+        return;
+      }
+
+      // Pattern 2: key=value list
+      const dMatch = txt.match(/d=(\-?\d+\.?\d*)/i);
+      const vMatch = txt.match(/v=(\-?\d+\.?\d*)/i);
+      const sMatch = txt.match(/score=(\-?\d+\.?\d*)/i);
+      const pMatch = txt.match(/p=(\-?\d+\.?\d*)/i);
+
+      if (dMatch || vMatch || sMatch || pMatch) {
+        const d = dMatch ? parseFloat(dMatch[1]) : NaN;
+        const v = vMatch ? parseFloat(vMatch[1]) : NaN;
+        const score = sMatch ? parseFloat(sMatch[1]) : NaN;
+        const p = pMatch ? parseFloat(pMatch[1]) : (isFinite(score) ? estP(score) : NaN);
+
+        updateUI(d, v, score, p, pMatch ? '(fw p)' : '(local p)');
+        return;
+      }
+
+      // If we reach here, unsupported payload—log it quietly
+      addLog('Unrecognized: ' + txt);
+    }
+
+    function updateUI(d, v, score, p, pTag) {
+      if (isFinite(d) && isFinite(v)) {
+        readingEl.textContent = `Distance: ${d.toFixed(2)} | Speed: ${v.toFixed(2)}`;
+      }
+      if (isFinite(score)) {
+        const pText = isFinite(p) ? p.toFixed(2) : '--';
+        scoreLine.textContent = `Score: ${score.toFixed(2)} | p: ${pText} ${pTag ? pTag : ''}`;
 
         const t = new Date().toLocaleTimeString();
         chartData.labels.push(t);
         chartData.datasets[0].data.push(score);
-        if (chartData.labels.length > 80) { chartData.labels.shift(); chartData.datasets[0].data.shift(); }
+        if (chartData.labels.length > ${maxPoints}) {
+          chartData.labels.shift();
+          chartData.datasets[0].data.shift();
+        }
         scoreChart.update();
 
-        const li = document.createElement('li');
-        li.textContent = `${t} → score=${score}${p ? ` (p=${parseFloat(p).toFixed(2)})` : ''}`;
-        scoreLog.prepend(li);
-        if (scoreLog.children.length > 120) scoreLog.removeChild(scoreLog.lastChild);
+        addLog(`${t} → score=${score.toFixed(2)}${isFinite(p) ? ` (p=${p.toFixed(2)})` : ''}`);
       }
     }
 
-    // Write "S=<int>" threshold
-    thresholdSlider.oninput = () => {
-      const S = parseInt(thresholdSlider.value, 10);
+    function addLog(line) {
+      const li = document.createElement('li');
+      li.textContent = line;
+      scoreLog.prepend(li);
+      while (scoreLog.children.length > 200) scoreLog.removeChild(scoreLog.lastChild);
+    }
+
+    // Connect
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      try { await connectBLE(); }
+      catch (e) {
+        console.error(e);
+        statusEl.textContent = 'Status: Connection failed';
+        addLog('Connect error: ' + e.message);
+      }
+    });
+
+    // Buzz
+    document.getElementById('buzzButton').addEventListener('click', async () => {
+      if (!characteristic) { alert('Connect to the device first.'); return; }
+      try {
+        const payload = new TextEncoder().encode('buzz');
+        await characteristic.writeValue(payload);
+        addLog('Sent: buzz');
+      } catch (e) {
+        console.error(e);
+        addLog('Buzz failed: ' + e.message);
+      }
+    });
+
+    // Clear log
+    document.getElementById('clearLog').addEventListener('click', () => {
+      scoreLog.innerHTML = '';
+    });
+
+    // Threshold slider -> update S AND write using both formats (text + byte)
+    const thresholdSlider = document.getElementById('thresholdSlider');
+    const thresholdValue  = document.getElementById('thresholdValue');
+    thresholdSlider.addEventListener('input', async () => {
+      S = parseInt(thresholdSlider.value, 10);
       thresholdValue.textContent = S;
       if (characteristic) {
-        const payload = new TextEncoder().encode(`S=${S}`);
-        characteristic.writeValue(payload).catch(err => console.error('Write failed:', err));
+        try {
+          // 1) Text format
+          await characteristic.writeValue(new TextEncoder().encode(`S=${S}`));
+          // 2) Byte format
+          await characteristic.writeValue(new Uint8Array([S & 0xFF]));
+          addLog(`Wrote threshold: S=${S} (text & byte)`);
+        } catch (e) {
+          console.error(e);
+          addLog('Write S failed: ' + e.message);
+        }
       }
-    };
-    document.getElementById('preset30').onclick = () => { thresholdSlider.value = 30; thresholdSlider.dispatchEvent(new Event('input')); };
-    document.getElementById('preset50').onclick = () => { thresholdSlider.value = 50; thresholdSlider.dispatchEvent(new Event('input')); };
-    document.getElementById('preset70').onclick = () => { thresholdSlider.value = 70; thresholdSlider.dispatchEvent(new Event('input')); };
-    document.getElementById('buzzButton').onclick = () => {
-      if (characteristic) {
-        const payload = new TextEncoder().encode('buzz');
-        characteristic.writeValue(payload).catch(err => console.error('Buzz write failed:', err));
-      } else {
-        alert('Connect to the device first.');
-      }
-    };
+    });
+
+    // Presets
+    document.getElementById('preset30').addEventListener('click', () => { thresholdSlider.value = 30; thresholdSlider.dispatchEvent(new Event('input')); });
+    document.getElementById('preset50').addEventListener('click', () => { thresholdSlider.value = 50; thresholdSlider.dispatchEvent(new Event('input')); });
+    document.getElementById('preset70').addEventListener('click', () => { thresholdSlider.value = 70; thresholdSlider.dispatchEvent(new Event('input')); });
+
+    // Logistic slope k
+    const kInput = document.getElementById('kInput');
+    kInput.addEventListener('change', () => {
+      const val = parseFloat(kInput.value);
+      if (isFinite(val) && val > 0) k = val;
+    });
   </script>
 </body>
 </html>
