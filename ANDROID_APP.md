@@ -10,8 +10,8 @@ This document outlines how to build an Android app that matches the logic and vi
 - Integrate with new hardware.
 
 ## Tech stack
-- **Language:** Kotlin
-- **UI:** Jetpack Compose for a lightweight single-activity UI that mirrors the web layout (four stat cards, threshold slider, and buttons).
+- **Language:** Kotlin and Java
+- **UI:** Designed with the help of Youna Kim. 
 - **BLE:** `BluetoothLeScanner`/`BluetoothGatt` with coroutines/`Flow` wrappers to mirror the web event-driven flow.
 - **Min SDK:** 26+ (BLE + runtime permissions).
 
@@ -80,3 +80,9 @@ suspend fun writeThreshold(value: Int) {
 - Persist the last connected device and threshold.
 - Add signal strength and battery indicators if the firmware exposes them.
 - Support OTA firmware updates once the ESP32 sketch adds that capability.
+
+## Tentative Timeline and Other Requirements
+- Finalize UI
+- Create tentative project with module and skeleton parsing logic by December 22nd
+- Implement dashboard and UI by January 22nd
+- Test (contingent upon SW/HW)
