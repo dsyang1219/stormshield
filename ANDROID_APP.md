@@ -6,6 +6,8 @@ This document outlines how to build an Android app that matches the logic and vi
 - Reuse the firmware's BLE UUIDs and payload conventions for full interoperability.
 - Present the same telemetry (distance, speed, score, proximity) with the web app's colors and layout cues.
 - Support the same control writes: threshold updates (`S=<int>` plus single-byte payload) and the **Buzz** test command.
+- Improve the UI (user interface) to be easier to interpret and use in real-life settings.
+- Integrate with new hardware.
 
 ## Tech stack
 - **Language:** Kotlin
