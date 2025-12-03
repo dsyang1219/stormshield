@@ -12,7 +12,7 @@ StormShield is a wearable safety system built on **ESP32** with an mmWave motion
 ## Repository Structure
 ```
 stormshield/
-├─ stormshield.ino      # ESP32 firmware (UART + LR scoring + BLE notify)
+├─ stormshield_fixed.ino# ESP32 firmware (UART + LR scoring + BLE notify)
 ├─ index.html           # Web app UI, BLE client, charts
 ├─ style.css            # Optional styles (if used)
 ├─ favicon.ico          # Site icon (optional)
@@ -56,6 +56,11 @@ d={meters},v={mps},score={0..100},p={0..1}
 **Web → Device (writes):**
 - `S=<int>` sets the logistic boundary so that `p=0.5` at `score=S`.
 - `buzz` triggers a short actuator test.
+
+### ESP32 ↔ Web app compatibility
+- The firmware advertises the `cda3…e5ad` service and `79e3…1493` characteristic; the web app first tries that pair and then falls back to a secondary pair for future firmware. No code changes are needed for a stock ESP32 flash.
+- Telemetry is sent as ASCII `d=…,v=…,score=…,p=…` lines. The web app accepts that format and a legacy `D<dist>,S<speed>` format, computing a local logistic `p` if the firmware omits it.
+- Slider/preset changes in the web app write both `S=<int>` (text) and a single-byte threshold, and the firmware accepts either `S=<int>` or a bare integer for S. The “Test Buzz” button sends the `buzz` command the firmware listens for.
 
 ## Risk Scoring (on firmware)
 ```
